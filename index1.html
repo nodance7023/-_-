@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&family=IBM+Plex+Mono:wght@400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f0d;
+    --surface: #111a15;
+    --card: #162019;
+    --border: #1e3324;
+    --accent: #00e676;
+    --accent2: #69f0ae;
+    --gold: #ffd740;
+    --text: #e8f5e9;
+    --muted: #5a7a60;
+    --danger: #ff5252;
+    --done-bg: #0d2818;
+    --blue: #3b82f6;
+    --cyan: #22d3ee;
+    --green: #10b981;
+    --red: #f87171;
+    --mono: 'Share Tech Mono', 'IBM Plex Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-serif; min-height: 100vh; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(0,230,118,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0,230,118,0.025) 1px, transparent 1px);
+    background-size: 40px 40px; pointer-events: none; z-index: 0;
+  }
+
+  /* TAB BAR */
+  .tab-bar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(10,15,13,0.97);
+    border-bottom: 1px solid var(--border);
+    display: flex; padding: 0 16px;
+  }
+  .tab-btn {
+    flex: 1; padding: 14px 8px; background: none;
+    border: none; border-bottom: 3px solid transparent;
+    color: var(--muted); font-family: 'Sarabun', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+
+  /* PAGES */
+  .page { display: none; padding: 24px 16px 48px; position: relative; z-index: 1; }
+  .page.active { display: block; }
+  .container { max-width: 640px; margin: 0 auto; }
+
+  /* HEADER */
+  .header { text-align: center; margin-bottom: 28px; }
+  .header .label { font-size: 11px; letter-spacing: 4px; color: var(--accent); text-transform: uppercase; margin-bottom: 6px; }
+  .header h1 { font-size: 26px; font-weight: 700; }
+  .header h1 span { color: var(--accent); }
+  .header h1 em { font-style: normal; color: var(--cyan); }
+
+  /* ══ PAGE 1: SAVINGS ══ */
+  .summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 10px; text-align: center; }
+  .stat-card .val { font-family: 'IBM Plex Mono', monospace; font-size: 17px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+  .stat-card .val.gold { color: var(--gold); }
+  .stat-card .lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .progress-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 24px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .progress-label span:last-child { color: var(--accent); font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
+  .progress-bar { height: 10px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 99px; transition: width 0.4s ease; min-width: 0; }
+
+  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .table-head { display: grid; grid-template-columns: 50px 1fr 1fr 1fr 60px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 11px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; }
+  .table-head span:not(:first-child) { text-align: right; }
+  .table-head span:last-child { text-align: center; }
+
+  .t-row { display: grid; grid-template-columns: 50px 1fr 1fr 1fr 60px; padding: 11px 16px; border-bottom: 1px solid rgba(30,51,36,0.5); align-items: center; transition: background 0.2s; cursor: pointer; user-select: none; }
+  .t-row:hover { background: rgba(0,230,118,0.04); }
+  .t-row:last-child { border-bottom: none; }
+  .t-row.done { background: var(--done-bg); }
+  .t-row.done .col-day, .t-row.done .col-profit, .t-row.done .col-capital { opacity: 0.45; text-decoration: line-through; text-decoration-color: var(--muted); }
+
+  .col-day { font-size: 12px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+  .col-profit { text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--accent2); }
+  .col-capital { text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--text); }
+  .col-target { text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--gold); }
+  .col-check { text-align: center; }
+
+  .checkbox {
+    width: 22px; height: 22px; border-radius: 6px;
+    border: 2px solid var(--border); background: transparent;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all 0.2s; pointer-events: none;
+  }
+  .t-row.done .checkbox { background: var(--accent); border-color: var(--accent); }
+  .checkbox svg { display: none; width: 13px; height: 13px; }
+  .t-row.done .checkbox svg { display: block; }
+
+  .total-row { display: grid; grid-template-columns: 50px 1fr 1fr 1fr 60px; padding: 13px 16px; background: var(--surface); border-top: 2px solid var(--accent); font-weight: 600; }
+  .total-row .lbl { font-size: 12px; color: var(--accent); letter-spacing: 1px; }
+  .total-row .val { text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: var(--accent); }
+
+  .reset-btn { display: block; margin: 20px auto 0; background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 9px 24px; border-radius: 8px; font-family: 'Sarabun', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+  .reset-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* ══ PAGE 2: MARTINGALE ══ */
+  .sys-label { font-family: var(--mono); font-size: 10px; color: var(--blue); letter-spacing: 3px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .sys-label::before { content: '▶'; color: var(--cyan); }
+
+  .config-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .chip { font-family: var(--mono); font-size: 11px; padding: 5px 12px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); }
+  .chip span { color: var(--gold); }
+
+  .steps { display: flex; flex-direction: column; margin-bottom: 20px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .step-card { background: var(--card); border-bottom: 1px solid var(--border); padding: 16px; }
+  .step-card:last-child { border-bottom: none; }
+  .step-card.win-state { background: rgba(16,185,129,0.06); border-left: 3px solid var(--green); }
+
+  .step-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .step-num { display: flex; align-items: center; gap: 10px; }
+  .step-badge { width: 32px; height: 32px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 13px; color: var(--cyan); }
+  .step-title { font-size: 15px; font-weight: 600; }
+  .step-subtitle { font-size: 11px; color: var(--muted); }
+  .bet-amount { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--gold); }
+  .bet-unit { font-size: 12px; color: var(--muted); }
+
+  .step-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .stat-box .s-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-bottom: 4px; text-transform: uppercase; }
+  .stat-box .s-val { font-family: var(--mono); font-size: 13px; color: var(--text); }
+  .stat-box .s-val.green { color: var(--green); }
+  .stat-box .s-val.red { color: var(--red); }
+  .stat-box .s-val.blue { color: var(--cyan); }
+
+  .step-arrow { text-align: center; font-size: 10px; color: var(--red); padding: 6px; background: rgba(248,113,113,0.05); font-family: var(--mono); letter-spacing: 2px; border-bottom: 1px solid var(--border); }
+
+  .m-summary { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  .m-summary-title { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; color: var(--blue); margin-bottom: 14px; }
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sum-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .sum-item .lbl { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .sum-item .val { font-family: var(--mono); font-size: 18px; font-weight: 600; }
+  .sum-item .val.yellow { color: var(--gold); }
+  .sum-item .val.green { color: var(--green); }
+  .sum-item .val.red { color: var(--red); }
+  .sum-item .val.cyan { color: var(--cyan); }
+
+  .rules { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+  .rules-title { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; color: var(--blue); margin-bottom: 12px; }
+  .rule-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(31,45,69,0.5); font-size: 13px; line-height: 1.5; }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .rule-item strong { color: var(--gold); }
+
+  .simulator { background: var(--card); border: 1px solid var(--cyan); border-radius: 12px; padding: 18px; margin-top: 16px; }
+  .sim-title { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; color: var(--cyan); margin-bottom: 14px; }
+  .sim-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .sim-btn { padding: 9px 18px; border-radius: 7px; border: 1px solid var(--border); font-family: 'Sarabun', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.18s; }
+  .btn-win { background: rgba(16,185,129,0.15); color: var(--green); border-color: var(--green); }
+  .btn-win:hover { background: rgba(16,185,129,0.3); }
+  .btn-lose { background: rgba(248,113,113,0.12); color: var(--red); border-color: var(--red); }
+  .btn-lose:hover { background: rgba(248,113,113,0.25); }
+  .btn-reset2 { background: transparent; color: var(--muted); border-color: var(--border); margin-left: auto; }
+  .btn-reset2:hover { color: var(--text); }
+
+  .sim-status { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .sim-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 13px; border-bottom: 1px solid rgba(31,45,69,0.4); }
+  .sim-row:last-child { border-bottom: none; }
+  .sim-row .s-lbl { color: var(--muted); }
+  .sim-row .s-val { font-family: var(--mono); font-size: 14px; font-weight: 600; }
+
+  .log-area { margin-top: 10px; max-height: 110px; overflow-y: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); line-height: 1.7; }
+  .log-win { color: var(--green); }
+  .log-lose { color: var(--red); }
+  .log-bust { color: var(--gold); }
+
+  .dot-pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); margin-right: 6px; }
+
+  .warning-box { background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.25); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #a08040; margin-top: 14px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('savings')" id="tab-savings">💰 ออมเงิน</button>
+  <button class="tab-btn" onclick="switchTab('martingale')" id="tab-martingale">📊 สูตรเดินเงิน</button>
+</div>
+
+<!-- PAGE 1 -->
+<div class="page active" id="page-savings">
+<div class="container">
+  <div class="header">
+    <div class="label">📈 Trading Savings Tracker</div>
+    <h1>ออม<span>วันละ 300</span> บาท</h1>
+  </div>
+  <div class="summary">
+    <div class="stat-card"><div class="val" id="doneCount">0</div><div class="lbl">วันที่ทำได้</div></div>
+    <div class="stat-card"><div class="val" id="savedTotal">฿0</div><div class="lbl">เก็บได้แล้ว</div></div>
+    <div class="stat-card"><div class="val gold" id="currentCapital">฿2,300</div><div class="lbl">ทุนปัจจุบัน</div></div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-label"><span>ความคืบหน้า</span><span id="pctText">0%</span></div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+  <div class="table-wrap">
+    <div class="table-head">
+      <span>วัน</span><span>กำไร/วัน</span><span>ทุนสะสม</span><span>เป้าหมาย</span><span>เสร็จ</span>
+    </div>
+    <div id="tableBody"></div>
+    <div class="total-row">
+      <div class="lbl">รวม</div>
+      <div class="val" id="totalProfit">฿0</div>
+      <div class="val gold" id="totalCapital">฿2,300</div>
+      <div class="val">—</div><div></div>
+    </div>
+  </div>
+  <button class="reset-btn" onclick="resetAll()">↺ รีเซ็ตทั้งหมด</button>
+</div>
+</div>
+
+<!-- PAGE 2 -->
+<div class="page" id="page-martingale">
+<div class="container">
+  <div class="header">
+    <div class="sys-label">MARTINGALE SYSTEM · 4 STEPS</div>
+    <h1>สูตรเดินเงิน <em>Martingale</em></h1>
+  </div>
+  <div class="config-bar">
+    <div class="chip">กำไรเป้า <span>+50 ฿</span></div>
+    <div class="chip">อัตราจ่าย <span>85%</span></div>
+    <div class="chip">ไม้สูงสุด <span>4 ไม้</span></div>
+    <div class="chip">ระบบ <span>ทบเมื่อแพ้</span></div>
+  </div>
+  <div class="steps" id="stepsContainer"></div>
+  <div class="m-summary">
+    <div class="m-summary-title">▸ สรุปภาพรวม</div>
+    <div class="summary-grid">
+      <div class="sum-item"><div class="lbl">ทุนสำรองที่ต้องมี</div><div class="val yellow" id="totalCapitalM">-</div></div>
+      <div class="sum-item"><div class="lbl">กำไรเมื่อชนะ</div><div class="val green">+฿50</div></div>
+      <div class="sum-item"><div class="lbl">ขาดทุนถ้าแพ้ครบ 4 ไม้</div><div class="val red" id="maxLoss">-</div></div>
+      <div class="sum-item"><div class="lbl">Risk : Reward</div><div class="val cyan" id="rrRatio">-</div></div>
+    </div>
+  </div>
+  <div class="rules">
+    <div class="rules-title">▸ กฎการเล่น</div>
+    <div class="rule-item"><span class="rule-icon">🟢</span><span><strong>ชนะ</strong> → รับกำไร +50 บาท แล้วเริ่มใหม่ที่ไม้ 1</span></div>
+    <div class="rule-item"><span class="rule-icon">🔴</span><span><strong>แพ้</strong> → เดินหน้าไม้ถัดไปตามสูตร (ทบเงินเดิมพัน)</span></div>
+    <div class="rule-item"><span class="rule-icon">🛑</span><span><strong>แพ้ครบ 4 ไม้</strong> → หยุดรอบนั้น ขาดทุน = ผลรวมทุกไม้</span></div>
+    <div class="rule-item"><span class="rule-icon">⚠️</span><span>ชนะที่ <strong>ไม้ไหนก็ได้</strong> = กำไร <strong>+50 บาท</strong> เสมอ</span></div>
+    <div class="rule-item"><span class="rule-icon">💡</span><span>ต้องมีทุนสำรองครบ <strong>ทุกไม้</strong> ก่อนเริ่มรอบ</span></div>
+    <div class="warning-box">⚠️ Martingale มีความเสี่ยงสูง หากแพ้ต่อเนื่อง ทุนหมดเร็ว ควรกำหนด <strong>Stop Loss</strong> และไม่เล่นเกินทุนที่กำหนด</div>
+  </div>
+  <div class="simulator">
+    <div class="sim-title">▸ จำลองการเล่น (SIMULATOR)</div>
+    <div class="sim-controls">
+      <button class="sim-btn btn-win" onclick="simWin()">✅ ชนะ</button>
+      <button class="sim-btn btn-lose" onclick="simLose()">❌ แพ้</button>
+      <button class="sim-btn btn-reset2" onclick="simReset()">↺ รีเซ็ต</button>
+    </div>
+    <div class="sim-status">
+      <div class="sim-row"><span class="s-lbl">ไม้ปัจจุบัน</span><span class="s-val" id="simStep" style="color:var(--cyan)">ไม้ 1</span></div>
+      <div class="sim-row"><span class="s-lbl">เดิมพันรอบนี้</span><span class="s-val" id="simBet" style="color:var(--gold)">-</span></div>
+      <div class="sim-row"><span class="s-lbl">กำไร/ขาดทุนสะสม</span><span class="s-val" id="simPnl" style="color:var(--text)">฿0</span></div>
+      <div class="sim-row"><span class="s-lbl">รอบทั้งหมด</span><span class="s-val" id="simRounds" style="color:var(--muted)">0</span></div>
+    </div>
+    <div class="log-area" id="simLog"></div>
+  </div>
+</div>
+</div>
+
+<script>
+// ── TAB ──
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('page-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ── SAVINGS ──
+var INITIAL = 2300, DAILY = 300, DAYS = 30;
+var checked = [];
+for (var ii = 0; ii < DAYS; ii++) checked.push(false);
+
+// Try localStorage, but don't fail if unavailable
+(function(){
+  try {
+    var saved = localStorage.getItem('trading_tracker_v2');
+    if (saved) {
+      var arr = JSON.parse(saved);
+      if (arr.length === DAYS) checked = arr;
+    }
+  } catch(e) {}
+})();
+
+function saveChecked() {
+  try { localStorage.setItem('trading_tracker_v2', JSON.stringify(checked)); } catch(e) {}
+}
+
+function fmt(n) {
+  return '\u0e3f' + n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function render() {
+  var tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  var doneCount = 0, savedTotal = 0;
+
+  for (var i = 0; i < DAYS; i++) {
+    var capital = INITIAL + i * DAILY;
+    var isDone = checked[i];
+    if (isDone) { doneCount++; savedTotal += DAILY; }
+
+    var row = document.createElement('div');
+    row.className = 't-row' + (isDone ? ' done' : '');
+    row.setAttribute('data-idx', i);
+    row.innerHTML =
+      '<div class="col-day">#' + (i+1 < 10 ? '0' : '') + (i+1) + '</div>' +
+      '<div class="col-profit">+' + fmt(DAILY) + '</div>' +
+      '<div class="col-capital">' + fmt(capital) + '</div>' +
+      '<div class="col-target">' + fmt(capital + DAILY) + '</div>' +
+      '<div class="col-check"><div class="checkbox">' +
+      '<svg viewBox="0 0 12 10" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M1 5L4.5 8.5L11 1" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg></div></div>';
+    row.onclick = (function(idx){ return function(){ checked[idx] = !checked[idx]; saveChecked(); render(); }; })(i);
+    tbody.appendChild(row);
+  }
+
+  var cap = INITIAL + doneCount * DAILY;
+  var pct = Math.round((doneCount / DAYS) * 100);
+  document.getElementById('doneCount').textContent = doneCount;
+  document.getElementById('savedTotal').textContent = fmt(savedTotal);
+  document.getElementById('currentCapital').textContent = fmt(cap);
+  document.getElementById('pctText').textContent = pct + '%';
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('totalProfit').textContent = fmt(savedTotal);
+  document.getElementById('totalCapital').textContent = fmt(cap);
+}
+
+function resetAll() {
+  if (confirm('\u0e23\u0e35\u0e40\u0e0b\u0e47\u0e15\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14?')) {
+    for (var i = 0; i < DAYS; i++) checked[i] = false;
+    saveChecked();
+    render();
+  }
+}
+
+// ── MARTINGALE ──
+var PAYOUT = 0.85, TARGET = 50, MAX_STEPS = 4;
+var mSteps = [];
+
+function buildSteps() {
+  mSteps = [];
+  var cumLoss = 0;
+  for (var i = 0; i < MAX_STEPS; i++) {
+    var bet = Math.ceil((TARGET + cumLoss) / PAYOUT);
+    mSteps.push({
+      step: i + 1,
+      bet: bet,
+      cumLoss: cumLoss,
+      winProfit: Math.round(bet * PAYOUT - cumLoss),
+      returnAmt: Math.round(bet * PAYOUT)
+    });
+    cumLoss += bet;
+  }
+}
+
+function renderSteps() {
+  var container = document.getElementById('stepsContainer');
+  container.innerHTML = '';
+  var totalCap = 0;
+  for (var i = 0; i < mSteps.length; i++) totalCap += mSteps[i].bet;
+
+  for (var j = 0; j < mSteps.length; j++) {
+    var s = mSteps[j];
+    if (j > 0) {
+      var arrow = document.createElement('div');
+      arrow.className = 'step-arrow';
+      arrow.textContent = '\u2715 \u0e41\u0e1e\u0e49 \u2192 \u0e17\u0e1a\u0e44\u0e21\u0e49\u0e16\u0e31\u0e14\u0e44\u0e1b';
+      container.appendChild(arrow);
+    }
+    var card = document.createElement('div');
+    card.className = 'step-card';
+    card.id = 'step-card-' + s.step;
+    card.innerHTML =
+      '<div class="step-top">' +
+        '<div class="step-num">' +
+          '<div class="step-badge">' + s.step + '</div>' +
+          '<div><div class="step-title">\u0e44\u0e21\u0e49\u0e17\u0e35\u0e48 ' + s.step + '</div>' +
+          '<div class="step-subtitle">' + (s.step === 1 ? '\u0e40\u0e23\u0e34\u0e48\u0e21\u0e15\u0e49\u0e19\u0e23\u0e2d\u0e1a\u0e43\u0e2b\u0e21\u0e48' : '\u0e41\u0e1e\u0e49 ' + (s.step-1) + ' \u0e44\u0e21\u0e49\u0e15\u0e34\u0e14 \u2192 \u0e17\u0e1a') + '</div></div>' +
+        '</div>' +
+        '<div style="text-align:right"><div class="bet-amount">' + fmt(s.bet) + '</div><div class="bet-unit">\u0e40\u0e14\u0e34\u0e21\u0e1e\u0e31\u0e19</div></div>' +
+      '</div>' +
+      '<div class="step-stats">' +
+        '<div class="stat-box"><div class="s-label">\u0e16\u0e49\u0e32\u0e0a\u0e19\u0e30\u0e44\u0e14\u0e49</div><div class="s-val green">+' + fmt(s.winProfit) + '</div></div>' +
+        '<div class="stat-box"><div class="s-label">\u0e17\u0e38\u0e19\u0e2a\u0e30\u0e2a\u0e21\u0e40\u0e2a\u0e35\u0e48\u0e22\u0e07</div><div class="s-val red">' + fmt(s.cumLoss + s.bet) + '</div></div>' +
+        '<div class="stat-box"><div class="s-label">\u0e1c\u0e25\u0e15\u0e2d\u0e1a\u0e41\u0e17\u0e19</div><div class="s-val blue">' + fmt(s.returnAmt) + '</div></div>' +
+      '</div>';
+    container.appendChild(card);
+  }
+
+  document.getElementById('totalCapitalM').textContent = fmt(totalCap);
+  document.getElementById('maxLoss').textContent = '-' + fmt(totalCap);
+  document.getElementById('rrRatio').textContent = (totalCap / TARGET).toFixed(1) + ' : 1';
+}
+
+// Simulator state
+var sim = { step: 0, pnl: 0, rounds: 0, log: [] };
+
+function updateSimUI() {
+  var cb = mSteps[sim.step].bet;
+  document.getElementById('simStep').textContent = '\u0e44\u0e21\u0e49 ' + (sim.step + 1);
+  document.getElementById('simBet').textContent = fmt(cb);
+  var pe = document.getElementById('simPnl');
+  pe.textContent = (sim.pnl >= 0 ? '+' : '') + fmt(sim.pnl);
+  pe.style.color = sim.pnl > 0 ? 'var(--green)' : sim.pnl < 0 ? 'var(--red)' : 'var(--text)';
+  document.getElementById('simRounds').textContent = sim.rounds;
+
+  var logEl = document.getElementById('simLog');
+  var html = '';
+  var logSlice = sim.log.slice(-20).reverse();
+  for (var i = 0; i < logSlice.length; i++) {
+    html += '<div class="' + logSlice[i].cls + '">' + logSlice[i].text + '</div>';
+  }
+  logEl.innerHTML = html;
+
+  for (var j = 0; j < mSteps.length; j++) {
+    var c = document.getElementById('step-card-' + (j+1));
+    if (c) { c.className = 'step-card'; if (j === sim.step) c.classList.add('win-state'); }
+  }
+}
+
+function simWin() {
+  sim.pnl += TARGET; sim.rounds++;
+  sim.log.push({ cls: 'log-win', text: '[\u0e23\u0e2d\u0e1a ' + sim.rounds + '] \u2705 \u0e0a\u0e19\u0e30\u0e44\u0e21\u0e49 ' + sim.step + 1 + ' \u2192 +' + fmt(TARGET) + ' (\u0e2a\u0e30\u0e2a\u0e21: ' + (sim.pnl >= 0 ? '+' : '') + fmt(sim.pnl) + ')' });
+  sim.step = 0; updateSimUI();
+}
+function simLose() {
+  var lb = mSteps[sim.step].bet; sim.pnl -= lb; sim.rounds++;
+  if (sim.step >= MAX_STEPS - 1) {
+    sim.log.push({ cls: 'log-bust', text: '[\u0e23\u0e2d\u0e1a ' + sim.rounds + '] \ud83d\uded1 \u0e41\u0e1e\u0e49\u0e04\u0e23\u0e1a 4 \u0e44\u0e21\u0e49 \u2192 \u0e23\u0e27\u0e21: ' + fmt(sim.pnl) });
+    sim.step = 0;
+  } else {
+    sim.log.push({ cls: 'log-lose', text: '[\u0e23\u0e2d\u0e1a ' + sim.rounds + '] \u274c \u0e41\u0e1e\u0e49\u0e44\u0e21\u0e49 ' + (sim.step+1) + ' (-' + fmt(lb) + ') \u2192 \u0e17\u0e1a\u0e44\u0e21\u0e49 ' + (sim.step+2) });
+    sim.step++;
+  }
+  updateSimUI();
+}
+function simReset() {
+  sim = { step: 0, pnl: 0, rounds: 0, log: [{ cls: '', text: '\u2014 \u0e23\u0e35\u0e40\u0e0b\u0e47\u0e15\u0e41\u0e25\u0e49\u0e27 \u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e40\u0e23\u0e34\u0e48\u0e21\u0e23\u0e2d\u0e1a\u0e43\u0e2b\u0e21\u0e48 \u2014' }] };
+  renderSteps(); updateSimUI();
+}
+
+// INIT
+buildSteps();
+render();
+renderSteps();
+updateSimUI();
+</script>
+</body>
+</html>
